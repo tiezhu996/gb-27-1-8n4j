@@ -21,6 +21,25 @@ export interface Course {
   teacherId: string;
   teacher?: any;
   lessons?: CourseLesson[];
+  averageRating?: number;
+  reviewCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CourseReview {
+  id: string;
+  courseId: string;
+  studentId: string;
+  rating: number;
+  comment: string;
+  reply?: string | null;
+  repliedAt?: Date | null;
+  student?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

@@ -55,6 +55,10 @@ export class Course {
   @OneToMany(() => CourseEnrollment, enrollment => enrollment.course)
   enrollments: CourseEnrollment[];
 
+  // 评价统计（非数据库列，由 CoursesService 聚合后附加）
+  averageRating?: number;
+  reviewCount?: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -1,11 +1,18 @@
 import { Controller, Get, Post, Put, Param, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { CoursesService } from './courses.service';
+import { CourseReviewsService } from './course-reviews.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CourseType } from '../../common/entities/course.entity';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { ReplyReviewDto } from './dto/reply-review.dto';
+import { UpdateProgressDto } from './dto/update-progress.dto';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly reviewsService: CourseReviewsService,
+  ) {}
 
   @Get()
   findAll(
@@ -56,6 +63,47 @@ export class CoursesController {
   @Get(':id/enrollment')
   getEnrollment(@Param('id') courseId: string, @Request() req) {
     return this.coursesService.getEnrollment(req.user.id, courseId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/progress')
+  updateProgress(
+    @Param('id') courseId: string,
+    @Body() body: UpdateProgressDto,
+    @Request() req,
+  ) {
+    return this.coursesService.updateProgress(req.user.id, courseId, body.progress);
+  }
+
+  @Get(':id/reviews')
+  findReviews(@Param('id') courseId: string) {
+    return this.reviewsService.findByCourse(courseId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/reviews/me')
+  findMyReview(@Param('id') courseId: string, @Request() req) {
+    return this.reviewsService.findMyReview(req.user.id, courseId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/reviews')
+  submitReview(
+    @Param('id') courseId: string,
+    @Body() body: CreateReviewDto,
+    @Request() req,
+  ) {
+    return this.reviewsService.createOrUpdate(req.user.id, req.user.role, courseId, body.rating, body.comment);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('reviews/:reviewId/reply')
+  replyReview(
+    @Param('reviewId') reviewId: string,
+    @Body() body: ReplyReviewDto,
+    @Request() req,
+  ) {
+    return this.reviewsService.reply(req.user.id, reviewId, body.reply);
   }
 
   @UseGuards(JwtAuthGuard)

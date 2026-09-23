@@ -1,5 +1,5 @@
 import { Row, Col, Card, Typography, Tag, Button, Input, Select, Space, Empty } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, StarFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { courseApi } from '@/api/course';
@@ -114,6 +114,16 @@ export default function CourseList() {
                       {course.tags?.map((tag) => (
                         <Tag key={tag}>{tag}</Tag>
                       ))}
+                      <Space size={4}>
+                        <StarFilled style={{ color: '#faad14' }} />
+                        {course.reviewCount && course.reviewCount > 0 ? (
+                          <span>
+                            {Number(course.averageRating).toFixed(1)} 分（{course.reviewCount} 人评价）
+                          </span>
+                        ) : (
+                          <span style={{ color: 'rgba(0,0,0,0.45)' }}>暂无评价</span>
+                        )}
+                      </Space>
                     </Space>
                   }
                 />

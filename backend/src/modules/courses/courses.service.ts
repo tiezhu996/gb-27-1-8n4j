@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In } from 'typeorm';
 import { Course, CourseType, CourseStatus } from '../../common/entities/course.entity';
 import { CourseLesson } from '../../common/entities/course-lesson.entity';
 import { CourseEnrollment, EnrollmentStatus } from '../../common/entities/course-enrollment.entity';
+import { CourseReview } from '../../common/entities/course-review.entity';
 import { UserRole } from '../../common/entities/user.entity';
 
 @Injectable()
@@ -15,7 +16,40 @@ export class CoursesService {
     private readonly lessonRepository: Repository<CourseLesson>,
     @InjectRepository(CourseEnrollment)
     private readonly enrollmentRepository: Repository<CourseEnrollment>,
+    @InjectRepository(CourseReview)
+    private readonly reviewRepository: Repository<CourseReview>,
   ) {}
+
+  private async attachReviewStats(courses: Course[]) {
+    if (courses.length === 0) return courses;
+
+    const stats = await this.reviewRepository
+      .createQueryBuilder('review')
+      .select('review.courseId', 'courseId')
+      .addSelect('AVG(review.rating)', 'averageRating')
+      .addSelect('COUNT(review.id)', 'reviewCount')
+      .where('review.courseId IN (:...courseIds)', { courseIds: courses.map(c => c.id) })
+      .groupBy('review.courseId')
+      .getRawMany();
+
+    const statsMap = new Map(
+      stats.map((s: any) => [
+        s.courseId,
+        {
+          averageRating: Math.round(Number(s.averageRating) * 10) / 10,
+          reviewCount: Number(s.reviewCount),
+        },
+      ]),
+    );
+
+    courses.forEach(course => {
+      const stat = statsMap.get(course.id);
+      course.averageRating = stat?.averageRating ?? 0;
+      course.reviewCount = stat?.reviewCount ?? 0;
+    });
+
+    return courses;
+  }
 
   async findAll(query: { category?: string; tag?: string; type?: CourseType; keyword?: string }) {
     const where: any = { status: CourseStatus.PUBLISHED };
@@ -31,12 +65,13 @@ export class CoursesService {
     });
     
     if (query.tag) {
-      return courses.filter(course => 
+      const filtered = courses.filter(course =>
         course.tags && course.tags.includes(query.tag)
       );
+      return this.attachReviewStats(filtered);
     }
-    
-    return courses;
+
+    return this.attachReviewStats(courses);
   }
 
   async findMyCourses(userId: string, role: UserRole) {
@@ -67,6 +102,7 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException('课程不存在');
     }
+    await this.attachReviewStats([course]);
     return course;
   }
 
@@ -123,6 +159,30 @@ export class CoursesService {
     return this.enrollmentRepository.findOne({
       where: { studentId, courseId },
     });
+  }
+
+  async updateProgress(studentId: string, courseId: string, progress: number) {
+    if (typeof progress !== 'number' || Number.isNaN(progress) || progress < 0 || progress > 100) {
+      throw new BadRequestException('进度必须是 0 到 100 之间的数值');
+    }
+
+    const enrollment = await this.enrollmentRepository.findOne({
+      where: { studentId, courseId },
+    });
+    if (!enrollment) {
+      throw new ForbiddenException('请先报名该课程');
+    }
+
+    // 进度只能向前推进
+    if (progress > Number(enrollment.progress)) {
+      enrollment.progress = progress;
+    }
+    if (Number(enrollment.progress) >= 100) {
+      enrollment.progress = 100;
+      enrollment.status = EnrollmentStatus.COMPLETED;
+    }
+
+    return this.enrollmentRepository.save(enrollment);
   }
 
   async createLesson(userId: string, courseId: string, lessonData: Partial<CourseLesson>) {
