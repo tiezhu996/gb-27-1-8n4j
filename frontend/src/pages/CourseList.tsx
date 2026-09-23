@@ -1,4 +1,4 @@
-import { Row, Col, Card, Typography, Tag, Button, Input, Select, Space, Empty } from 'antd';
+import { Row, Col, Card, Typography, Tag, Button, Input, Select, Space, Empty, Rate } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -110,6 +110,18 @@ export default function CourseList() {
                           {course.type === CourseType.PAID ? `¥${course.price}` : '免费'}
                         </Tag>
                         <Tag>{course.category}</Tag>
+                      </Space>
+                      <Space size={4}>
+                        <Rate
+                          disabled
+                          allowHalf
+                          value={course.averageRating || 0}
+                          style={{ fontSize: 14 }}
+                        />
+                        <Typography.Text type="secondary">
+                          {course.averageRating || 0}
+                          {course.reviewCount ? `（${course.reviewCount}）` : ''}
+                        </Typography.Text>
                       </Space>
                       {course.tags?.map((tag) => (
                         <Tag key={tag}>{tag}</Tag>

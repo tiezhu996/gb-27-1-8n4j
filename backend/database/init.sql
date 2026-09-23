@@ -60,6 +60,19 @@ CREATE TABLE IF NOT EXISTS course_enrollments (
   UNIQUE(student_id, course_id)
 );
 
+CREATE TABLE IF NOT EXISTS course_reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES users(id),
+  rating INT NOT NULL,
+  comment TEXT NOT NULL,
+  teacher_reply TEXT,
+  teacher_replied_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(student_id, course_id)
+);
+
 CREATE TABLE IF NOT EXISTS live_classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title VARCHAR(100) NOT NULL,
@@ -124,6 +137,8 @@ CREATE INDEX IF NOT EXISTS idx_courses_status ON courses(status);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON course_lessons(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON course_enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_course ON course_enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_course ON course_reviews(course_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_student ON course_reviews(student_id);
 CREATE INDEX IF NOT EXISTS idx_live_classes_course ON live_classes(course_id);
 CREATE INDEX IF NOT EXISTS idx_live_classes_status ON live_classes(status);
 CREATE INDEX IF NOT EXISTS idx_assignments_course ON assignments(course_id);

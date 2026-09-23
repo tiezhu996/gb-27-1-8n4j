@@ -1,5 +1,5 @@
 import { api } from './index';
-import { Course, CourseLesson, CourseEnrollment, CourseType } from '@/types/course';
+import { Course, CourseLesson, CourseEnrollment, CourseType, CourseReview, CourseReviewSummary } from '@/types/course';
 
 export const courseApi = {
   list: (params?: { category?: string; tag?: string; type?: CourseType; keyword?: string }) =>
@@ -14,4 +14,12 @@ export const courseApi = {
   createLesson: (courseId: string, data: Partial<CourseLesson>) =>
     api.post<CourseLesson>(`/courses/${courseId}/lessons`, data).then(res => res.data),
   getLesson: (lessonId: string) => api.get<CourseLesson>(`/courses/lessons/${lessonId}`).then(res => res.data),
+  getReviews: (courseId: string) =>
+    api.get<CourseReviewSummary>(`/courses/${courseId}/reviews`).then(res => res.data),
+  getMyReview: (courseId: string) =>
+    api.get<CourseReview | null>(`/courses/${courseId}/reviews/my`).then(res => res.data),
+  submitReview: (courseId: string, data: { rating: number; comment: string }) =>
+    api.post<CourseReview>(`/courses/${courseId}/reviews`, data).then(res => res.data),
+  replyReview: (reviewId: string, reply: string) =>
+    api.post<CourseReview>(`/reviews/${reviewId}/reply`, { reply }).then(res => res.data),
 };

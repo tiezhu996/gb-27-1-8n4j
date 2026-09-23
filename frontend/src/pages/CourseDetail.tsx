@@ -1,11 +1,12 @@
 import { Row, Col, Card, Typography, Tag, Button, Space, Descriptions, List, Avatar, message, Modal } from 'antd';
-import { PlayCircleOutlined, BookOutlined, EditOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, BookOutlined, EditOutlined, StarFilled } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { courseApi } from '@/api/course';
-import { Course, CourseType, CourseLesson } from '@/types/course';
+import { Course, CourseType, CourseLesson, CourseEnrollment } from '@/types/course';
 import { useAuthStore } from '@/store/auth';
 import { UserRole } from '@/types/user';
+import CourseReviews from '@/components/CourseReviews';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -15,6 +16,7 @@ export default function CourseDetail() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolled, setEnrolled] = useState(false);
+  const [enrollment, setEnrollment] = useState<CourseEnrollment | null>(null);
   const { user, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
@@ -30,8 +32,9 @@ export default function CourseDetail() {
       const data = await courseApi.get(id);
       setCourse(data);
       if (isAuthenticated) {
-        const enrollment = await courseApi.getEnrollment(id);
-        setEnrolled(!!enrollment);
+        const enrollmentData = await courseApi.getEnrollment(id);
+        setEnrolled(!!enrollmentData);
+        setEnrollment(enrollmentData);
       }
     } finally {
       setLoading(false);
@@ -53,8 +56,9 @@ export default function CourseDetail() {
         : '确定报名该免费课程？',
       onOk: async () => {
         try {
-          await courseApi.enroll(id);
+          const result = await courseApi.enroll(id);
           setEnrolled(true);
+          setEnrollment(result);
           message.success('报名成功');
         } catch (error: any) {
           message.error(error.response?.data?.message || '报名失败');
@@ -117,6 +121,15 @@ export default function CourseDetail() {
                   <Avatar icon={<BookOutlined />} />
                   <Text>{course.teacher?.name || '未知教师'}</Text>
                 </Space>
+                <div style={{ marginTop: 12 }}>
+                  <Space size={4}>
+                    <StarFilled style={{ color: '#fadb14' }} />
+                    <Text strong>{course.averageRating || 0}</Text>
+                    <Text type="secondary">
+                      （{course.reviewCount || 0} 人评价）
+                    </Text>
+                  </Space>
+                </div>
                 <div style={{ marginTop: 24 }}>
                   {isTeacher ? (
                     <Space>
@@ -154,6 +167,14 @@ export default function CourseDetail() {
               </Descriptions.Item>
               <Descriptions.Item label="课程类型">
                 {course.type === CourseType.PAID ? '付费' : '免费'}
+              </Descriptions.Item>
+              {enrolled && (
+                <Descriptions.Item label="学习进度">
+                  {Number(enrollment?.progress || 0)}%
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="平均评分">
+                {course.averageRating || 0} 分（{course.reviewCount || 0} 人评价）
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -199,6 +220,10 @@ export default function CourseDetail() {
           )}
         />
       </Card>
+
+      {id && (
+        <CourseReviews courseId={id} enrollment={enrollment} isTeacher={isTeacher} />
+      )}
     </div>
   );
 }

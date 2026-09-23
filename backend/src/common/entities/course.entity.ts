@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from './user.entity';
 import { CourseLesson } from './course-lesson.entity';
 import { CourseEnrollment } from './course-enrollment.entity';
+import { CourseReview } from './course-review.entity';
 
 export enum CourseType {
   FREE = 'free',
@@ -54,6 +55,9 @@ export class Course {
 
   @OneToMany(() => CourseEnrollment, enrollment => enrollment.course)
   enrollments: CourseEnrollment[];
+
+  @OneToMany(() => CourseReview, review => review.course)
+  reviews: CourseReview[];
 
   @CreateDateColumn()
   createdAt: Date;

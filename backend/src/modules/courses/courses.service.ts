@@ -4,6 +4,7 @@ import { Repository, Like, In } from 'typeorm';
 import { Course, CourseType, CourseStatus } from '../../common/entities/course.entity';
 import { CourseLesson } from '../../common/entities/course-lesson.entity';
 import { CourseEnrollment, EnrollmentStatus } from '../../common/entities/course-enrollment.entity';
+import { CourseReview } from '../../common/entities/course-review.entity';
 import { UserRole } from '../../common/entities/user.entity';
 
 @Injectable()
@@ -15,7 +16,37 @@ export class CoursesService {
     private readonly lessonRepository: Repository<CourseLesson>,
     @InjectRepository(CourseEnrollment)
     private readonly enrollmentRepository: Repository<CourseEnrollment>,
+    @InjectRepository(CourseReview)
+    private readonly reviewRepository: Repository<CourseReview>,
   ) {}
+
+  private async attachReviewStats<T extends { id: string }>(courses: T[]): Promise<(T & { averageRating: number; reviewCount: number })[]> {
+    if (courses.length === 0) {
+      return [];
+    }
+
+    const stats = await this.reviewRepository
+      .createQueryBuilder('review')
+      .select('review.courseId', 'courseId')
+      .addSelect('AVG(review.rating)', 'avg')
+      .addSelect('COUNT(review.id)', 'count')
+      .where('review.courseId IN (:...courseIds)', { courseIds: courses.map(c => c.id) })
+      .groupBy('review.courseId')
+      .getRawMany();
+
+    const statMap = new Map(
+      stats.map(s => [s.courseId, { avg: Number(s.avg), count: Number(s.count) }]),
+    );
+
+    return courses.map(course => {
+      const stat = statMap.get(course.id);
+      return {
+        ...course,
+        averageRating: stat ? Math.round(stat.avg * 10) / 10 : 0,
+        reviewCount: stat ? stat.count : 0,
+      };
+    });
+  }
 
   async findAll(query: { category?: string; tag?: string; type?: CourseType; keyword?: string }) {
     const where: any = { status: CourseStatus.PUBLISHED };
@@ -31,12 +62,13 @@ export class CoursesService {
     });
     
     if (query.tag) {
-      return courses.filter(course => 
-        course.tags && course.tags.includes(query.tag)
+      const filtered = courses.filter(course =>
+        course.tags && course.tags.includes(query.tag),
       );
+      return this.attachReviewStats(filtered);
     }
-    
-    return courses;
+
+    return this.attachReviewStats(courses);
   }
 
   async findMyCourses(userId: string, role: UserRole) {
@@ -67,7 +99,8 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException('课程不存在');
     }
-    return course;
+    const [withStats] = await this.attachReviewStats([course]);
+    return withStats;
   }
 
   async create(userId: string, courseData: Partial<Course>) {
